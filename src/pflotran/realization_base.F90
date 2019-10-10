@@ -1,0 +1,219 @@
+module Realization_Base_class
+
+  use Patch_module
+
+  use Discretization_module
+  use Option_module
+  use Input_Aux_module
+  use Debug_module
+  use Output_Aux_module
+  use Field_module
+  use Reaction_Aux_module
+  use Mass_Transfer_module
+  use Communicator_Base_module
+
+  use PFLOTRAN_Constants_module
+
+  implicit none
+
+  private
+
+#include "finclude/petscsys.h"
+  type, public :: realization_base_type
+
+    PetscInt :: id
+    type(discretization_type), pointer :: discretization
+    class(communicator_type), pointer :: comm1
+    type(patch_list_type), pointer :: patch_list
+    type(patch_type), pointer :: patch
+
+    type(option_type), pointer :: option
+    type(input_type), pointer :: input
+    type(field_type), pointer :: field
+    type(debug_type), pointer :: debug
+    type(output_option_type), pointer :: output_option
+    type(mass_transfer_type), pointer :: flow_mass_transfer_list
+    type(mass_transfer_type), pointer :: rt_mass_transfer_list
+    
+    type(reaction_type), pointer :: reaction
+    
+  end type realization_base_type
+  
+  public :: RealizationBaseInit, &
+            RealizationGetVariable, &
+            RealizGetVariableValueAtCell, &
+            RealizationSetVariable, &
+            RealizationBaseStrip
+
+contains
+
+! ************************************************************************** !
+
+subroutine RealizationBaseInit(realization_base,option)
+  ! 
+  ! Initializes variables/objects in base realization class
+  ! 
+  ! Author: Glenn Hammond
+  ! Date: 01/16/13
+  ! 
+
+  implicit none
+  
+  class(realization_base_type) :: realization_base
+  type(option_type), pointer :: option
+  
+  realization_base%id = 0
+  if (associated(option)) then
+    realization_base%option => option
+  else
+    realization_base%option => OptionCreate()
+  endif
+  nullify(realization_base%input)
+  realization_base%discretization => DiscretizationCreate()
+  nullify(realization_base%comm1)  
+  realization_base%field => FieldCreate()
+  realization_base%debug => DebugCreate()
+  realization_base%output_option => OutputOptionCreate()
+
+  realization_base%patch_list => PatchCreateList()
+
+  nullify(realization_base%reaction)
+
+  nullify(realization_base%patch)
+  nullify(realization_base%flow_mass_transfer_list)
+  nullify(realization_base%rt_mass_transfer_list)
+
+end subroutine RealizationBaseInit
+
+! ************************************************************************** !
+
+subroutine RealizationGetVariable(realization_base,vec,ivar,isubvar,isubvar1)
+  ! 
+  ! Extracts variables indexed by ivar and isubvar from a
+  ! realization
+  ! 
+  ! Author: Glenn Hammond
+  ! Date: 09/12/08
+  ! 
+
+  use Option_module
+
+  implicit none
+
+#include "finclude/petscvec.h"
+#include "finclude/petscvec.h90"
+
+  class(realization_base_type) :: realization_base
+  Vec :: vec
+  PetscInt :: ivar
+  PetscInt :: isubvar
+  PetscInt, optional :: isubvar1
+  
+  call PatchGetVariable(realization_base%patch,realization_base%field, &
+                       realization_base%reaction,realization_base%option, &
+                       realization_base%output_option,vec,ivar,isubvar,isubvar1)
+
+end subroutine RealizationGetVariable
+
+! ************************************************************************** !
+
+function RealizGetVariableValueAtCell(realization_base,ivar,isubvar,ghosted_id, &
+                                     isubvar1)
+  ! 
+  ! Extracts variables indexed by ivar and isubvar
+  ! from a realization
+  ! 
+  ! Author: Glenn Hammond
+  ! Date: 09/12/08
+  ! 
+
+  use Option_module
+
+  implicit none
+  
+  PetscReal :: RealizGetVariableValueAtCell
+  class(realization_base_type) :: realization_base
+  PetscInt :: ivar
+  PetscInt :: isubvar
+  PetscInt, optional :: isubvar1
+  PetscInt :: ghosted_id
+  
+  PetscReal :: value
+  
+  value = PatchGetVariableValueAtCell(realization_base%patch,realization_base%field, &
+                                     realization_base%reaction, &
+                                     realization_base%option, &
+                                     realization_base%output_option, &
+                                     ivar,isubvar,ghosted_id,isubvar1)
+  RealizGetVariableValueAtCell = value
+
+end function RealizGetVariableValueAtCell
+
+! ************************************************************************** !
+
+subroutine RealizationSetVariable(realization_base,vec,vec_format,ivar,isubvar)
+  ! 
+  ! Sets variables indexed by ivar and isubvar in a
+  ! realization
+  ! 
+  ! Author: Glenn Hammond
+  ! Date: 09/12/08
+  ! 
+
+  use Option_module
+
+  implicit none
+
+#include "finclude/petscvec.h"
+#include "finclude/petscvec.h90"
+
+  class(realization_base_type) :: realization_base
+  Vec :: vec
+  PetscInt :: vec_format
+  PetscInt :: ivar
+  PetscInt :: isubvar
+
+  call PatchSetVariable(realization_base%patch,realization_base%field, &
+                       realization_base%option, &
+                       vec,vec_format,ivar,isubvar)
+
+end subroutine RealizationSetVariable
+
+! ************************************************************************** !
+
+subroutine RealizationBaseStrip(this)
+  ! 
+  ! Deallocates members of base realization
+  ! 
+  ! Author: Glenn Hammond
+  ! Date: 01/13/14
+  ! 
+
+  implicit none
+  
+  class(realization_base_type) :: this
+  
+  call FieldDestroy(this%field)
+
+!  call OptionDestroy(realization%option) !geh it will be destroy externally
+  call OutputOptionDestroy(this%output_option)
+  
+  call DiscretizationDestroy(this%discretization)
+  
+  if (associated(this%comm1)) then
+    call this%comm1%Destroy()
+    deallocate(this%comm1)
+  endif
+  nullify(this%comm1)
+  
+  call PatchDestroyList(this%patch_list)
+  nullify(this%patch)
+
+  call DebugDestroy(this%debug)
+  
+  call MassTransferDestroy(this%flow_mass_transfer_list)
+  call MassTransferDestroy(this%rt_mass_transfer_list)
+   
+end subroutine RealizationBaseStrip
+
+end module Realization_Base_class

@@ -1,0 +1,222 @@
+!=========================== flow mode ========================================
+MODE RICHARDS
+ROOT_SYSTEM
+
+REGRESSION
+  CELLS_PER_PROCESS 10
+  CELLS
+    2
+    6
+    7
+    8
+    12
+    9
+    13
+    14
+    15
+    19
+  /
+END
+
+!=========================== solver options ===================================
+TIMESTEPPER
+TS_ACCELERATION 8
+MAX_SATURATION_CHANGE 5
+MAX_TS_CUTS 30
+/
+
+!=========================== discretization ===================================
+GRID
+  TYPE structured
+  ORIGIN 0.d0 0.d0 0.d0
+  NXYZ 5 4 3
+  DXYZ
+    5.
+    5.
+    0.1
+  /
+END
+
+!=========================== fluid properties =================================
+FLUID_PROPERTY 
+  DIFFUSION_COEFFICIENT 1.d-9
+/
+
+!=========================== material properties ==============================
+MATERIAL_PROPERTY soil1
+  ID 1
+  POROSITY 0.37d0
+  TORTUOSITY 1.d0
+  SATURATION_FUNCTION sf1
+  PERMEABILITY
+    PERM_X 1.3d-11 ![m2] k=K(mu/rho/g)=350/1000/3600*0.0013/1000/9.8, dynamic viscosity of 0.0013kg/(ms) at 10C
+    PERM_Y 1.3d-11
+    PERM_Z 1.3d-11
+  /
+/
+
+MATERIAL_PROPERTY soil2
+  ID 2
+  POROSITY 0.37d0
+  TORTUOSITY 1.d0
+  SATURATION_FUNCTION sf1
+  PERMEABILITY
+    PERM_X 1.3d-11 ![m2] k=K(mu/rho/g)=350/1000/3600*0.0013/1000/9.8, dynamic viscosity of 0.0013kg/(ms) at 10C
+    PERM_Y 1.3d-11
+    PERM_Z 1.3d-11
+  /
+/
+
+MATERIAL_PROPERTY soil3
+  ID 3
+  POROSITY 0.37d0
+  TORTUOSITY 1.d0
+  SATURATION_FUNCTION sf1
+  PERMEABILITY
+    PERM_X 1.3d-11 
+    PERM_Y 1.3d-11
+    PERM_Z 1.3d-11
+  /
+/
+
+!=========================== saturation functions =============================
+SATURATION_FUNCTION sf1
+  SATURATION_FUNCTION_TYPE VAN_GENUCHTEN
+  RESIDUAL_SATURATION 0.0  !(0.04-0.04)/(0.37-0.04)=0
+  LAMBDA 0.404d0 !VG m=1-1/n=1-1/1.68=0.404
+  ALPHA 5.3d-4 !alpha=-0.0052 1/mm --> 0.0052/9.806= 5.3d-41/pa
+END
+
+!=========================== output options ===================================
+OUTPUT
+!  PERIODIC TIME 1.0 h
+!  FORMAT HDF5
+!!   FORMAT VTK
+ROOT_SYSTEMS ALL
+/
+
+!=========================== times ============================================
+TIME
+  FINAL_TIME 720.d0 h
+  INITIAL_TIMESTEP_SIZE 1.0d0 h
+  MAXIMUM_TIMESTEP_SIZE 1.0d0 h
+/
+
+!=========================== regions ==========================================
+REGION all
+  COORDINATES
+    0.d0 0.d0 0.d0
+    100.d0 100.d0 2.d0
+  /
+END
+
+REGION RootSystem1
+  FILE Rootsystem_overlapping.h5
+END
+
+REGION RootSystem2
+  FILE Rootsystem_overlapping.h5
+END
+
+REGION Soil
+  FILE Rootsystem_overlapping.h5
+END
+
+!=========================== flow conditions ==================================
+
+! source/sink, need to be update at each time step, according to spatial SM condition
+! and it's different for each soil elements
+
+FLOW_CONDITION source_RootSystem1
+  TYPE
+    RATE heterogeneous_mass_rate
+  /
+  SYNC_TIMESTEP_WITH_UPDATE
+  RATE file Trans_RootSystem1.dat
+/
+
+FLOW_CONDITION source_RootSystem2
+  TYPE
+    RATE heterogeneous_mass_rate
+  /
+  SYNC_TIMESTEP_WITH_UPDATE
+  RATE file Trans_RootSystem2.dat
+/
+
+FLOW_CONDITION initial
+  TYPE
+    PRESSURE hydrostatic
+  /
+!  PRESSURE 1956741.84 ! 200 meter piezometric head (200*997.32*9.81)
+  DATUM 0.d0 0.d0 0.d0 ! Initial pressure at the bottom, assume water table at the bottom
+  PRESSURE 101325.d0 ! 1 meter piezometric head (1*997.32*9.81) 
+/
+
+!=========================== data sets ========================================
+DATASET root_param_1
+  FILENAME root_param_ovp_system_1_format_1.h5
+/
+
+DATASET root_param_2
+  FILENAME root_param_ovp_system_2_format_1.h5
+/
+
+!=========================== root properties ==============================
+ROOT_PROPERTY root1
+  ID 1
+  COMPENSATORY_CONDUCATNACE 1.4d-7
+  STANDARD_WATER_UPDATE_DENISTY DATASET root_param_1
+  COLLAR_WATER_POT_THRESHOLD -250.d0
+/
+
+ROOT_PROPERTY root2
+  ID 2
+  COMPENSATORY_CONDUCATNACE 1.4d-7
+  STANDARD_WATER_UPDATE_DENISTY DATASET root_param_2
+  COLLAR_WATER_POT_THRESHOLD -250.d0
+/
+
+ROOT_PROPERTY no_root
+  ID 3
+  COMPENSATORY_CONDUCATNACE 1.4d-7
+  STANDARD_WATER_UPDATE_DENISTY 0.d0
+  COLLAR_WATER_POT_THRESHOLD -250.d0
+/
+
+
+!=========================== condition couplers ===============================
+! source/sink
+SOURCE_SINK RootSystem1
+  FLOW_CONDITION source_RootSystem1
+  REGION RootSystem1
+END
+
+SOURCE_SINK RootSystem2
+  FLOW_CONDITION source_RootSystem2
+  REGION RootSystem2
+END
+
+! initial condition
+INITIAL_CONDITION initial
+  FLOW_CONDITION initial
+  REGION all
+END
+
+!=========================== stratigraphy couplers ============================
+STRATA
+  REGION RootSystem1
+  MATERIAL soil1
+  ROOT_MATERIAL root1
+END
+
+STRATA
+  REGION RootSystem2
+  MATERIAL soil2
+  ROOT_MATERIAL root2
+END
+
+STRATA
+  REGION Soil
+  MATERIAL soil3
+  ROOT_MATERIAL no_root
+END

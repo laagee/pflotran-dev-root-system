@@ -1,0 +1,294 @@
+:Description: Input file with a soil domain 100m x 100m x 2m,  
+:             need to update sink terms according to spatial distribution soil moisture 
+
+:=========================== flow mode ========================================
+MODE RICHARDS
+
+:=========================== solver options ===================================
+TIMESTEPPER
+  TS_ACCELERATION 8
+/
+
+:=========================== discretization ===================================
+GRID
+  TYPE structured
+  ORIGIN 0.d0 0.d0 0.d0
+  :NXYZ 100 100 20
+  :NXYZ 2000 2000 400
+  NXYZ 20 20 20
+  BOUNDS
+    0.d0 100.d0
+    0.d0 100.d0
+    0.d0 2.d0
+  /
+END
+
+:=========================== fluid properties =================================
+FLUID_PROPERTY 
+  DIFFUSION_COEFFICIENT 1.d-9
+/
+
+:=========================== material properties ==============================
+MATERIAL_PROPERTY soil1
+  ID 1
+  POROSITY 0.37d0
+  TORTUOSITY 1.d0
+  SATURATION_FUNCTION sf1
+  PERMEABILITY
+    PERM_X 8.84d-12 !k=K(mu/rho/g)=350/1000/3600*0.000891/1000/9.8, dynamic viscosity of 0.000891kg/(ms) at 25C
+    PERM_Y 8.84d-12
+    PERM_Z 8.84d-12
+  /
+/
+
+MATERIAL_PROPERTY soil2
+  ID 2
+  POROSITY 0.37d0
+  TORTUOSITY 1.d0
+  SATURATION_FUNCTION sf1
+  PERMEABILITY
+    PERM_X 8.84d-12
+    PERM_Y 8.84d-12
+    PERM_Z 8.84d-12
+  /
+/
+
+MATERIAL_PROPERTY soil3
+  ID 3
+  POROSITY 0.37d0
+  TORTUOSITY 1.d0
+  SATURATION_FUNCTION sf1
+  PERMEABILITY
+    PERM_X 8.84d-12
+    PERM_Y 8.84d-12
+    PERM_Z 8.84d-12
+  /
+/
+
+:=========================== saturation functions =============================
+SATURATION_FUNCTION sf1
+  SATURATION_FUNCTION_TYPE VAN_GENUCHTEN
+  RESIDUAL_SATURATION 0.108d0  !0.04/0.37=0.108
+  LAMBDA 0.404d0 !VG m=1-1/n=1-1/1.68=0.404
+  ALPHA 5.3d-4 !alpha=-0.0052 1/mm --> 0.0052/9.806= 5.3d-41/pa
+END
+
+:=========================== output options ===================================
+OUTPUT
+  :MASS_BALANCE
+  TIMES h 1d0 5d0 9d0
+  PERIODIC TIME 1.0 h
+:  FORMAT TECPLOT BLOCK
+:  FORMAT HDF5
+   FORMAT VTK
+:  VELOCITIES
+/
+
+:=========================== times ============================================
+TIME
+  FINAL_TIME 999.d0 h
+  INITIAL_TIMESTEP_SIZE 1.0d0 h
+  MAXIMUM_TIMESTEP_SIZE 1.0d0 h
+/
+
+:=========================== regions ==========================================
+REGION all
+  COORDINATES
+    0.d0 0.d0 0.d0
+    100.d0 100.d0 2.d0
+  /
+END
+
+REGION RootSystem1
+  FILE Rootsystem.h5
+END
+
+REGION RootSystem2
+  FILE Rootsystem.h5
+END
+
+REGION Soil
+  FILE Rootsystem.h5
+END
+
+REGION west
+  FACE WEST
+  COORDINATES
+    0.d0 0.d0 0.d0
+    0.d0 100.d0 2.d0
+  /
+END
+
+REGION east
+  FACE EAST
+  COORDINATES
+    100.d0 0.d0 0.d0
+    100.d0 100.d0 2.d0
+  /
+END
+
+REGION north
+  FACE NORTH
+  COORDINATES
+    0.d0 100.d0 0.d0
+    100.d0 100.d0 2.d0
+  /
+END
+
+REGION south
+  FACE SOUTH
+  COORDINATES
+    0.d0 0.d0 0.d0
+    100.d0 0.d0 2.d0
+  /
+END
+
+REGION top
+  FACE TOP
+  COORDINATES
+    0.d0 0.d0 2.d0
+    100.d0 100.d0 2.d0
+  /
+END
+
+REGION bottom
+  FACE BOTTOM
+  COORDINATES
+    0.d0 0.d0 0.d0
+    100.d0 100.d0 0.d0
+  /
+END
+
+
+REGION top_layer
+  COORDINATES
+    0.d0 0.d0 0.d0
+    100.d0 100.d0 1.d0
+  /
+END
+
+REGION bottom_layer
+  COORDINATES
+    0.d0 0.d0 1.d0
+    100.d0 100.d0 2.d0
+  /
+END
+
+:=========================== flow conditions ==================================
+
+: source/sink, need to be update at each time step, according to spatial SM condition
+: and it's different for each soil elements
+
+FLOW_CONDITION source_RootSystem1
+  TYPE
+    RATE heterogeneous_mass_rate
+  /
+  SYNC_TIMESTEP_WITH_UPDATE
+  RATE file Trans_RootSystem1_999.dat
+/
+
+FLOW_CONDITION source_RootSystem2
+  TYPE
+    RATE heterogeneous_mass_rate
+  /
+  SYNC_TIMESTEP_WITH_UPDATE
+  RATE file Trans_RootSystem2_999.dat
+/
+
+
+FLOW_CONDITION initial
+  TYPE
+    PRESSURE hydrostatic
+  /
+:  PRESSURE 1956741.84 ! 200 meter piezometric head (200*997.32*9.81)
+  DATUM 0.d0 0.d0 0.d0
+  PRESSURE 101325.d0 ! 1 meter piezometric head (1*997.32*9.81)
+/
+
+FLOW_CONDITION bottom_darcy_flux
+
+  TYPE
+    PRESSURE unit_gradient
+  /
+  PRESSURE 101325.d0  ! likely still need a dummy pressure, but you could try without.
+END
+
+FLOW_CONDITION NetPPT
+TYPE
+FLUX neumann
+/
+:FLUX 0.317098d-7 ! 1 m/y
+:FLUX 1.5855d-9 ! 5 cm/y
+FLUX file UMBS_NetPPT_file_hourly.dat :mm/hr-->m/s
+/
+
+:=========================== condition couplers ===============================
+: source/sink
+SOURCE_SINK RootSystem1
+  FLOW_CONDITION source_RootSystem1
+  REGION RootSystem1
+END
+
+SOURCE_SINK RootSystem2
+  FLOW_CONDITION source_RootSystem2
+  REGION RootSystem2
+END
+
+: initial condition
+INITIAL_CONDITION initial
+  FLOW_CONDITION initial
+  REGION all
+END
+
+: bottom boundary condition
+BOUNDARY_CONDITION bottom
+  FLOW_CONDITION bottom_darcy_flux
+  REGION bottom
+END
+
+BOUNDARY_CONDITION NetPPT
+FLOW_CONDITION NetPPT
+REGION top
+/
+
+:=========================== data sets ========================================
+DATASET root_param
+  FILENAME root_param.h5
+/
+:=========================== root properties ==============================
+ROOT_PROPERTY root1
+  ID 1
+  COMPENSATORY_CONDUCATNACE 1.5d-8
+  STANDARD_WATER_UPDATE_DENISTY DATASET root_param
+/
+
+ROOT_PROPERTY root2
+  ID 2
+  COMPENSATORY_CONDUCATNACE 1.5d-8
+  STANDARD_WATER_UPDATE_DENISTY DATASET root_param
+/
+
+ROOT_PROPERTY no_root
+  ID 3
+  COMPENSATORY_CONDUCATNACE 0.d0
+  STANDARD_WATER_UPDATE_DENISTY 0.d0
+/
+
+:=========================== stratigraphy couplers ============================
+STRATA
+  REGION RootSystem1
+  MATERIAL soil1
+  ROOT_MATERIAL root1
+END
+
+STRATA
+  REGION RootSystem2
+  MATERIAL soil2
+  ROOT_MATERIAL root2
+END
+
+STRATA
+  REGION Soil
+  MATERIAL soil3
+  ROOT_MATERIAL no_root
+END
