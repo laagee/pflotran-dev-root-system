@@ -6,4 +6,4 @@ This is the public respository for the root water uptake module developed by (Ag
 
 Wiki information is under construction. Contact Liz Agee (agee.elizabeth.a -at- gmail.com) for more details.
 
-Agee, E., He L., Bisht, G., Couvreur, V., Shahbaz, P., Meunier, F., Gough, C.M., Matheny, A., Bohrer, G., and Ivanov, V.Y.  Compensatory root water uptake and community interactions between root systems in a temperate forest. Submitted to Advances in Water Resources.
+Agee, E., He L., Bisht, G., Couvreur, V., Shahbaz, P., Meunier, F., Gough, C.M., Matheny, A., Bohrer, G., and Ivanov, V.Y.  Compensatory root water uptake and community interactions between root systems in a temperate forest. (In submission)
