@@ -4,6 +4,6 @@ This is the public respository for the root water uptake module developed by (Ag
 
 *Note: This is a forked branch of the PFLOTRAN-dev code and is not current with the master.* 
 
-Wiki information is under construction. Contact Liz Agee (agee.elizabeth.a -at- gmail.com) for more details.
+Wiki information is under construction. Contact Liz Agee (agee.elizabeth.a -at- gmail.com) for more details. For the most current version, see http://github.com/laagee/pflotran-dev-root-system/
 
-Agee, E., He L., Bisht, G., Couvreur, V., Shahbaz, P., Meunier, F., Gough, C.M., Matheny, A., Bohrer, G., and Ivanov, V.Y.  Compensatory root water uptake and community interactions between root systems in a temperate forest. (In submission)
+Agee, E., He L., Bisht, G., Couvreur, V., Shahbaz, P., Meunier, F., Gough, C.M., Matheny, A., Bohrer, G., and Ivanov, V.Y.  Root lateral interactions drive water uptake patterns under water limitation (In submission)
